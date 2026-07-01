@@ -1,0 +1,188 @@
+.ribbon {
+  background: var(--rv-ribbon-bg);
+  border-bottom: 2px solid var(--rv-ribbon-border);
+  flex-shrink: 0;
+}
+
+.tabStrip {
+  display: flex;
+  align-items: stretch;
+  background: #e0e0e0;
+  border-bottom: 1px solid var(--rv-ribbon-border);
+  height: 28px;
+}
+
+.fileBtn {
+  background: #1565a0;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 0 18px;
+  border-right: 1px solid var(--rv-ribbon-border);
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.fileBtn:hover {
+  background: #1050a0;
+}
+
+.tab {
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--rv-ribbon-tab-text);
+  background: transparent;
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--rv-ribbon-tab-hover);
+}
+
+.tab.tabActive {
+  background: var(--rv-ribbon-tab-active);
+  border-left-color: var(--rv-ribbon-border);
+  border-right-color: var(--rv-ribbon-border);
+  color: var(--rv-ribbon-tab-active-accent);
+  font-weight: 700;
+  border-bottom: 2px solid var(--rv-ribbon-bg);
+  margin-bottom: -1px;
+  z-index: 1;
+}
+
+/* Active tab blue underline */
+.tab.tabActive::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--rv-ribbon-bg);
+}
+
+.panelRow {
+  display: flex;
+  align-items: stretch;
+  padding: 4px 6px 0;
+  gap: 2px;
+  min-height: 82px;
+  overflow-x: auto;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rv-panel-border);
+  border-radius: 2px;
+  background: white;
+  min-width: 90px;
+}
+
+.panel.panelHighlight {
+  border-color: var(--rv-ribbon-tab-active-accent);
+  box-shadow: 0 0 0 1px rgba(21,101,160,0.3);
+}
+
+.panelContent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  flex-wrap: wrap;
+}
+
+.panelTitle {
+  text-align: center;
+  font-size: 10px;
+  color: var(--rv-panel-title-text);
+  background: var(--rv-panel-title-bg);
+  border-top: 1px solid var(--rv-panel-border);
+  padding: 2px 6px;
+  letter-spacing: 0.2px;
+  font-weight: 500;
+}
+
+.iconBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: 3px;
+  min-width: 44px;
+  gap: 2px;
+  transition: background 0.1s, border-color 0.1s;
+  border: 1px solid transparent;
+}
+
+.iconBtn:hover {
+  background: var(--rv-btn-hover);
+  border-color: var(--rv-btn-border);
+}
+
+.iconBtn:active {
+  background: var(--rv-btn-active);
+}
+
+.iconBtnIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.iconBtnLabel {
+  font-size: 9px;
+  color: var(--rv-prop-label);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Phasing panel layout */
+.phasingPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0;
+}
+
+.phasingRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropLabel {
+  font-size: 10px;
+  color: var(--rv-prop-label);
+  font-weight: 600;
+  width: 72px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.drop {
+  font-size: 11px;
+  padding: 2px 5px;
+  border: 1px solid var(--rv-btn-border);
+  border-radius: 2px;
+  background: white;
+  color: var(--rv-prop-value);
+  outline: none;
+  width: 185px;
+}
+
+.drop:focus {
+  border-color: var(--rv-ribbon-tab-active-accent);
+  box-shadow: 0 0 0 1px rgba(21,101,160,0.3);
+}
+
+.tabPlaceholder {
+  font-size: 11px;
+  color: #888;
+  padding: 8px;
+}

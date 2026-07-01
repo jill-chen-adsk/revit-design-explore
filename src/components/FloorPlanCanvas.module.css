@@ -1,0 +1,88 @@
+.wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--rv-canvas-bg);
+  position: relative;
+}
+
+.viewport {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+}
+
+.svg {
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  width: 440px;
+  height: auto;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+
+.hoverable {
+  cursor: crosshair;
+}
+
+.hoverable:hover {
+  filter: brightness(0.93);
+}
+
+.statsBar {
+  background: #e0e0e0;
+  border-top: 1px solid #c0c0c0;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #444;
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.hidden {
+  color: #888;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 200;
+  background: #1a2a3a;
+  color: #f0f4f8;
+  font-size: 11px;
+  padding: 8px 11px;
+  border-radius: 5px;
+  line-height: 1.6;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  pointer-events: none;
+  max-width: 260px;
+}
+
+.ttTitle {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 4px;
+}
+
+.ttRow {
+  color: #b8c8d8;
+}
+
+.ttLabel {
+  color: #7899bb;
+}
+
+.ttStatus {
+  color: #7bbfba;
+  font-weight: 600;
+}

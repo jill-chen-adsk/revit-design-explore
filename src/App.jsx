@@ -1,131 +1,150 @@
-import { useState, useMemo } from 'react'
-import Header from './components/Header'
-import Toolbar from './components/Toolbar'
-import OptionCard from './components/OptionCard'
-import TableView from './components/TableView'
-import ComparePanel from './components/ComparePanel'
-import DetailDrawer from './components/DetailDrawer'
-import { projects, designOptions } from './data/designOptions'
+import { useState } from 'react'
+import RevitRibbon from './components/RevitRibbon'
+import ProjectBrowser from './components/ProjectBrowser'
+import PropertiesPanel from './components/PropertiesPanel'
+import FloorPlanCanvas from './components/FloorPlanCanvas'
+import ViewControlBar from './components/ViewControlBar'
+import { SCENARIOS } from './data/phasingData'
 import styles from './App.module.css'
 
 export default function App() {
-  const [selectedProjectId, setSelectedProjectId] = useState(projects[0].id)
-  const [view, setView] = useState('grid')
-  const [search, setSearch] = useState('')
-  const [filterTag, setFilterTag] = useState('')
-  const [selectedIds, setSelectedIds] = useState([])
-  const [compareOpen, setCompareOpen] = useState(false)
-  const [detailOption, setDetailOption] = useState(null)
+  const [viewPhase, setViewPhase]   = useState(0)
+  const [viewFilter, setViewFilter] = useState('complete')
+  const [activeScenario, setActiveScenario] = useState(0)
+  const [hoveredElement, setHoveredElement] = useState(null)
+  const [scenarioNote, setScenarioNote] = useState(SCENARIOS[0].note)
 
-  const currentProject = projects.find((p) => p.id === selectedProjectId)
-  const allOptions = designOptions[selectedProjectId] || []
-
-  const allTags = useMemo(() => {
-    const set = new Set()
-    allOptions.forEach((o) => o.tags.forEach((t) => set.add(t)))
-    return [...set].sort()
-  }, [allOptions])
-
-  const filtered = useMemo(() => {
-    return allOptions.filter((o) => {
-      const matchSearch = !search ||
-        o.name.toLowerCase().includes(search.toLowerCase()) ||
-        o.description.toLowerCase().includes(search.toLowerCase())
-      const matchTag = !filterTag || o.tags.includes(filterTag)
-      return matchSearch && matchTag
-    })
-  }, [allOptions, search, filterTag])
-
-  function toggleSelect(id) {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
+  function applyScenario(idx) {
+    const sc = SCENARIOS[idx]
+    setViewPhase(sc.phase)
+    setViewFilter(sc.filter)
+    setActiveScenario(idx)
+    setScenarioNote(sc.note)
   }
 
-  const compareOptions = allOptions.filter((o) => selectedIds.includes(o.id))
+  function handlePhaseChange(val) {
+    setViewPhase(val)
+    setActiveScenario(-1)
+    setScenarioNote('')
+  }
 
-  function handleProjectChange(id) {
-    setSelectedProjectId(id)
-    setSelectedIds([])
-    setSearch('')
-    setFilterTag('')
+  function handleFilterChange(val) {
+    setViewFilter(val)
+    setActiveScenario(-1)
+    setScenarioNote('')
   }
 
   return (
-    <div className={styles.app}>
-      <Header
-        projects={projects}
-        selectedProject={selectedProjectId}
-        onSelectProject={handleProjectChange}
-      />
-
-      <div className={styles.projectBanner}>
-        <div className={styles.bannerLeft}>
-          <span className={styles.bannerLabel}>Phase</span>
-          <span className={styles.bannerValue}>{currentProject.phase}</span>
-          <span className={styles.bannerDivider}>·</span>
-          <span className={styles.bannerLabel}>{filtered.length} option{filtered.length !== 1 ? 's' : ''}</span>
-          {selectedIds.length > 0 && (
-            <>
-              <span className={styles.bannerDivider}>·</span>
-              <span className={styles.bannerSelected}>{selectedIds.length} selected</span>
-            </>
-          )}
+    <div className={styles.shell}>
+      {/* Title bar */}
+      <div className={styles.titleBar}>
+        <div className={styles.titleBarLeft}>
+          <div className={styles.quickAccess}>
+            <TinyBtn>💾</TinyBtn>
+            <TinyBtn>↩</TinyBtn>
+            <TinyBtn>↪</TinyBtn>
+            <div className={styles.qaDivider} />
+            <TinyBtn>⚡</TinyBtn>
+          </div>
+        </div>
+        <div className={styles.titleBarCenter}>
+          Autodesk Revit 2026 — [Floor Plan: Level 1 – phase-demo.rvt]
+        </div>
+        <div className={styles.titleBarRight}>
+          <TinyBtn>─</TinyBtn>
+          <TinyBtn>⬜</TinyBtn>
+          <TinyBtn close>✕</TinyBtn>
         </div>
       </div>
 
-      <Toolbar
-        view={view}
-        onViewChange={setView}
-        search={search}
-        onSearch={setSearch}
-        filterTag={filterTag}
-        onFilterTag={setFilterTag}
-        allTags={allTags}
-        selectedCount={selectedIds.length}
-        onCompare={() => setCompareOpen(true)}
+      {/* Ribbon */}
+      <RevitRibbon
+        viewPhase={viewPhase}
+        viewFilter={viewFilter}
+        onPhaseChange={handlePhaseChange}
+        onFilterChange={handleFilterChange}
       />
 
-      <main className={styles.main}>
-        {filtered.length === 0 ? (
-          <div className={styles.empty}>
-            <p>No design options match your filters.</p>
-          </div>
-        ) : view === 'grid' ? (
-          <div className={styles.grid}>
-            {filtered.map((opt) => (
-              <OptionCard
-                key={opt.id}
-                option={opt}
-                selected={selectedIds.includes(opt.id)}
-                onToggleSelect={toggleSelect}
-                onOpenDetail={setDetailOption}
-              />
-            ))}
-          </div>
-        ) : (
-          <TableView
-            options={filtered}
-            selected={selectedIds}
-            onToggleSelect={toggleSelect}
-            onOpenDetail={setDetailOption}
-          />
+      {/* Guided scenario strip */}
+      <div className={styles.scenarioStrip}>
+        <span className={styles.scenarioStripLabel}>Guided Scenarios:</span>
+        {SCENARIOS.map((sc, i) => (
+          <button
+            key={i}
+            className={`${styles.scenarioBtn} ${activeScenario === i ? styles.scenarioBtnActive : ''}`}
+            onClick={() => applyScenario(i)}
+          >
+            {i + 1} · {sc.viewName.replace('Floor Plan: ', '')}
+          </button>
+        ))}
+        {scenarioNote && (
+          <span className={styles.scenarioNote}>{scenarioNote}</span>
         )}
-      </main>
+      </div>
 
-      {compareOpen && compareOptions.length >= 2 && (
-        <ComparePanel
-          options={compareOptions}
-          onClose={() => setCompareOpen(false)}
+      {/* Main workspace */}
+      <div className={styles.workspace}>
+        {/* Left: Project Browser */}
+        <ProjectBrowser
+          activeScenario={activeScenario}
+          onSelectScenario={applyScenario}
         />
-      )}
 
-      {detailOption && (
-        <DetailDrawer
-          option={detailOption}
-          onClose={() => setDetailOption(null)}
+        {/* Center: canvas + view control bar */}
+        <div className={styles.canvasColumn}>
+          <div className={styles.viewTab}>
+            <span className={styles.viewTabName}>
+              {activeScenario >= 0 ? SCENARIOS[activeScenario].viewName : 'Floor Plan: Level 1'}
+            </span>
+            <button className={styles.viewTabClose}>✕</button>
+          </div>
+          <FloorPlanCanvas
+            viewPhase={viewPhase}
+            viewFilter={viewFilter}
+            onHoverElement={setHoveredElement}
+          />
+          <ViewControlBar viewPhase={viewPhase} viewFilter={viewFilter} />
+        </div>
+
+        {/* Right: Properties palette */}
+        <PropertiesPanel
+          viewPhase={viewPhase}
+          viewFilter={viewFilter}
+          onPhaseChange={handlePhaseChange}
+          onFilterChange={handleFilterChange}
+          hoveredElement={hoveredElement}
         />
-      )}
+      </div>
+
+      {/* Status bar */}
+      <div className={styles.statusBar}>
+        <span>Click to select elements. Hover to inspect phase metadata.</span>
+        <div className={styles.statusRight}>
+          <LegendSwatch color="#cde8f6" label="Existing" />
+          <LegendSwatch color="#ccf0e0" label="New" />
+          <LegendSwatch color="#f0d0e8" label="Demolished" />
+          <LegendSwatch color="#f0f0d8" label="Future Fit-Out" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TinyBtn({ children, close }) {
+  return (
+    <button
+      className={`${styles.tinyBtn} ${close ? styles.tinyBtnClose : ''}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function LegendSwatch({ color, label }) {
+  return (
+    <div className={styles.legendItem}>
+      <div className={styles.swatch} style={{ background: color }} />
+      <span>{label}</span>
     </div>
   )
 }
