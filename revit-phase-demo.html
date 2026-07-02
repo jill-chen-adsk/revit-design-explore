@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Revit 2026 — Phase Behavior Demo</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rv-titlebar:#2d2d2d; --rv-ribbon-bg:#f4f4f4; --rv-ribbon-border:#b8b8b8;
+  --rv-panel-border:#c8c8c8; --rv-accent:#1565a0; --rv-accent-light:#d0e4f8;
+  --rv-btn-hover:#d4e8f8; --rv-canvas-bg:#808080; --rv-prop-border:#d8d8d8;
+  --rv-tree-active:#1565a0; --rv-status-bg:#d8d8d8;
+}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;
+  font-size:12px;color:#1a1a1a;-webkit-font-smoothing:antialiased;background:var(--rv-canvas-bg)}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+select{font-family:inherit;font-size:11px;cursor:pointer}
+
+/* ── SHELL ── */
+#shell{height:100%;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TITLE BAR ── */
+#titlebar{background:var(--rv-titlebar);color:#d0d0d0;height:30px;display:flex;
+  align-items:center;justify-content:space-between;flex-shrink:0;user-select:none}
+.tb-left{display:flex;align-items:center;gap:2px;padding:0 8px;min-width:160px}
+.tb-center{flex:1;text-align:center;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-right{display:flex;align-items:center;gap:1px;padding:0 4px;min-width:80px;justify-content:flex-end}
+.tb-btn{width:22px;height:22px;border-radius:2px;font-size:11px;display:flex;
+  align-items:center;justify-content:center;color:#c0c0c0;transition:background .1s}
+.tb-btn:hover{background:#484848;color:#fff}
+.tb-close:hover{background:#c8303a!important;color:#fff!important}
+.tb-qa{width:1px;height:16px;background:#505050;margin:0 4px}
+
+/* ── RIBBON ── */
+#ribbon{background:var(--rv-ribbon-bg);border-bottom:2px solid var(--rv-ribbon-border);flex-shrink:0}
+.tab-strip{display:flex;align-items:stretch;background:#e0e0e0;
+  border-bottom:1px solid var(--rv-ribbon-border);height:28px}
+.tab-file-btn{background:var(--rv-accent);color:#fff;font-weight:700;font-size:12px;
+  padding:0 16px;border-right:1px solid var(--rv-ribbon-border);letter-spacing:.3px}
+.tab-file-btn:hover{background:#1050a0}
+.tab-btn{padding:0 13px;font-size:11px;font-weight:500;color:#1a1a1a;
+  border-right:1px solid transparent;border-left:1px solid transparent;white-space:nowrap;transition:background .1s}
+.tab-btn:hover{background:#e8e8e8}
+.tab-btn.active{background:#fff;border-color:var(--rv-ribbon-border);color:var(--rv-accent);
+  font-weight:700;border-bottom:2px solid #f4f4f4;margin-bottom:-1px;z-index:1;position:relative}
+.panel-row{display:flex;align-items:stretch;padding:4px 6px 0;gap:2px;min-height:82px;overflow-x:auto}
+.r-panel{display:flex;flex-direction:column;border:1px solid var(--rv-panel-border);border-radius:2px;background:#fff}
+.r-panel.highlight{border-color:var(--rv-accent);box-shadow:0 0 0 1px rgba(21,101,160,.25)}
+.r-panel-body{flex:1;display:flex;align-items:center;gap:3px;padding:4px 8px}
+.r-panel-title{text-align:center;font-size:10px;color:#666;background:#e8e8e8;
+  border-top:1px solid var(--rv-panel-border);padding:2px 6px;font-weight:500}
+.r-icon-btn{display:flex;flex-direction:column;align-items:center;padding:4px 7px;
+  border-radius:3px;min-width:46px;gap:2px;border:1px solid transparent;transition:background .1s,border-color .1s}
+.r-icon-btn:hover{background:var(--rv-btn-hover);border-color:#c0c0c0}
+.r-icon-btn .ico{font-size:20px;line-height:1}
+.r-icon-btn .lbl{font-size:9px;color:#555;text-align:center;white-space:nowrap}
+.phasing-body{display:flex;flex-direction:column;gap:5px;padding:2px 4px}
+.phasing-row{display:flex;align-items:center;gap:5px}
+.phasing-lbl{font-size:10px;color:#555;font-weight:600;width:68px;text-align:right;flex-shrink:0}
+.phasing-sel{font-size:11px;padding:2px 5px;border:1px solid #c0c0c0;border-radius:2px;
+  background:#fff;color:#1a1a1a;outline:none;width:185px}
+.phasing-sel:focus{border-color:var(--rv-accent)}
+
+/* ── SCENARIO STRIP ── */
+#scenario-strip{background:#eff4f9;border-bottom:1px solid #c8d8e8;
+  padding:5px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.sc-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.sc-btn{padding:3px 10px;font-size:11px;border:1.5px solid #c0ccd8;
+  border-radius:3px;background:#fff;color:#1a2a3a;font-weight:500;white-space:nowrap;transition:all .12s}
+.sc-btn:hover{background:#e0eaf8;border-color:var(--rv-accent)}
+.sc-btn.active{background:var(--rv-accent);border-color:var(--rv-accent);color:#fff}
+#sc-note{font-size:11px;color:#4a5a6a;font-style:italic;line-height:1.4;max-width:640px}
+
+/* ── WORKSPACE ── */
+#workspace{flex:1;display:flex;overflow:hidden}
+
+/* ── PROJECT BROWSER ── */
+#proj-browser{width:210px;min-width:210px;background:#f8f8f8;
+  border-right:1px solid var(--rv-panel-border);display:flex;flex-direction:column;overflow:hidden}
+.side-header{background:var(--rv-accent);color:#fff;font-size:11px;font-weight:600;
+  padding:5px 8px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree{flex:1;overflow-y:auto;padding:4px 0;font-size:11px}
+.tree-node-hdr{display:flex;align-items:center;gap:4px;padding:3px 6px 3px 8px;
+  cursor:pointer;font-weight:600;color:#444;user-select:none}
+.tree-node-hdr:hover{background:#d0e4f8}
+.tree-children{display:none}
+.tree-children.open{display:block}
+.tree-view{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 32px;
+  cursor:pointer;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree-view:hover{background:#d0e4f8}
+.tree-view.active{background:var(--rv-tree-active);color:#fff}
+
+/* ── CANVAS COLUMN ── */
+#canvas-col{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#view-tab{background:#2d2d2d;color:#e0e0e0;font-size:11px;padding:4px 12px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid #555}
+#view-tab-close{font-size:10px;color:#888;width:16px;height:16px;border-radius:2px;
+  display:flex;align-items:center;justify-content:center}
+#view-tab-close:hover{background:#c8303a;color:#fff}
+
+/* ── SVG CANVAS ── */
+#canvas-area{flex:1;overflow:hidden;position:relative;background:var(--rv-canvas-bg)}
+#fp{
+  width:100%;height:100%;display:block;
+  cursor:crosshair;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#fp.panning{cursor:grabbing}
+
+/* Coordinate overlay (bottom-right of canvas) */
+#coord-overlay{
+  position:absolute;bottom:4px;right:8px;
+  font-size:10px;font-family:'Courier New',monospace;
+  color:rgba(255,255,255,0.75);pointer-events:none;
+  background:rgba(0,0,0,0.35);padding:2px 6px;border-radius:3px;
+  letter-spacing:.3px;
+}
+/* Zoom overlay (top-right) */
+#zoom-badge{
+  position:absolute;top:8px;right:8px;
+  font-size:10px;font-family:'Courier New',monospace;
+  color:rgba(255,255,255,0.75);pointer-events:none;
+  background:rgba(0,0,0,0.35);padding:2px 8px;border-radius:3px;
+}
+/* Keyboard hint overlay (top-left) */
+#key-hint{
+  position:absolute;top:8px;left:8px;
+  font-size:10px;color:rgba(255,255,255,0.6);pointer-events:none;
+  background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:3px;line-height:1.7;
+}
+
+/* ── VIEW CONTROL BAR ── */
+#vcb{background:#d0d0d0;border-top:1px solid #b0b0b0;height:26px;
+  display:flex;align-items:center;padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto}
+.vcb-btn{height:20px;padding:0 6px;font-size:10px;color:#333;border-radius:2px;
+  white-space:nowrap;border:1px solid transparent;transition:background .1s}
+.vcb-btn:hover{background:#bbd0e8;border-color:#99b8d0}
+.vcb-btn.vcb-active{background:#bbd0e8;border-color:#99b8d0}
+.vcb-div{width:1px;height:16px;background:#b0b0b0;margin:0 2px;flex-shrink:0}
+#vcb-zoom{font-size:10px;font-family:'Courier New',monospace;color:#333;padding:0 4px;min-width:48px;text-align:right}
+#vcb-phase{font-size:10px;color:#333;padding:0 4px;white-space:nowrap}
+#vcb-phase strong{color:var(--rv-accent)}
+
+/* ── PROPERTIES PANEL ── */
+#prop-panel{width:230px;min-width:230px;background:#f8f8f8;
+  border-left:1px solid var(--rv-panel-border);display:flex;flex-direction:column;overflow:hidden}
+#prop-scroll{flex:1;overflow-y:auto}
+.prop-type-bar{background:#ebebeb;border-bottom:1px solid var(--rv-prop-border);padding:4px 8px;flex-shrink:0}
+.prop-type-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.4px}
+.prop-type-name{font-size:11px;font-weight:600;color:#1a1a1a}
+.prop-section{border-bottom:1px solid var(--rv-prop-border)}
+.prop-section-hdr{display:flex;align-items:center;gap:4px;padding:4px 8px;
+  background:#ececec;font-size:11px;font-weight:700;color:#333;cursor:pointer;user-select:none}
+.prop-section-hdr:hover{background:#e0e0e0}
+.prop-section-hdr.accent{background:#d0e4f8;color:var(--rv-accent)}
+.prop-section-hdr.accent:hover{background:#c4daf5}
+.prop-section-body{background:#fff}
+.prop-row{display:flex;align-items:stretch;border-bottom:1px solid #f0f0f0;min-height:22px}
+.prop-row:hover{background:#e8f0f8}
+.prop-lbl{width:110px;min-width:110px;padding:3px 6px 3px 8px;font-size:10px;color:#555;
+  display:flex;align-items:center;border-right:1px solid #e8e8e8;line-height:1.3}
+.prop-val{flex:1;padding:3px 6px;font-size:11px;color:#1a1a1a;display:flex;
+  align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prop-val select{width:100%;font-size:10px;border:1px solid #c0c0c0;border-radius:2px;
+  background:#fff;padding:1px 2px;outline:none}
+.prop-val select:focus{border-color:var(--rv-accent)}
+.prop-tip{padding:8px;font-size:10px;color:#888;line-height:1.5;font-style:italic}
+
+/* ── STATUS BAR ── */
+#statusbar{background:var(--rv-status-bg);border-top:1px solid #b8b8b8;height:22px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 12px;
+  font-size:10px;color:#444;flex-shrink:0}
+.legend-row{display:flex;align-items:center;gap:12px}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-swatch{width:16px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.18)}
+
+/* ── TOOLTIP ── */
+#tooltip{position:fixed;pointer-events:none;z-index:300;background:#1a2a3a;color:#f0f4f8;
+  font-size:11px;padding:8px 11px;border-radius:5px;line-height:1.6;
+  box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:0;transition:opacity .1s;max-width:270px}
+#tooltip.show{opacity:1}
+.tt-title{font-weight:700;font-size:12px;margin-bottom:4px;color:#fff;
+  border-bottom:1px solid rgba(255,255,255,.15);padding-bottom:4px}
+.tt-lbl{color:#7899bb}
+.tt-st{color:#7bbfba;font-weight:600}
+</style>
+</head>
+<body>
+<div id="shell">
+
+<!-- TITLE BAR -->
+<div id="titlebar">
+  <div class="tb-left">
+    <button class="tb-btn">💾</button><button class="tb-btn">↩</button>
+    <button class="tb-btn">↪</button><div class="tb-qa"></div>
+    <button class="tb-btn">⚡</button>
+  </div>
+  <div class="tb-center">Autodesk Revit 2026 — [Floor Plan: Level 1 – phase-demo.rvt]</div>
+  <div class="tb-right">
+    <button class="tb-btn">─</button><button class="tb-btn">⬜</button>
+    <button class="tb-btn tb-close">✕</button>
+  </div>
+</div>
+
+<!-- RIBBON -->
+<div id="ribbon">
+  <div class="tab-strip">
+    <button class="tab-file-btn">File</button>
+    <button class="tab-btn" onclick="switchTab(this,'Architecture')">Architecture</button>
+    <button class="tab-btn" onclick="switchTab(this,'Structure')">Structure</button>
+    <button class="tab-btn" onclick="switchTab(this,'Systems')">Systems</button>
+    <button class="tab-btn" onclick="switchTab(this,'Insert')">Insert</button>
+    <button class="tab-btn" onclick="switchTab(this,'Annotate')">Annotate</button>
+    <button class="tab-btn" onclick="switchTab(this,'Analyze')">Analyze</button>
+    <button class="tab-btn active" onclick="switchTab(this,'View')">View</button>
+    <button class="tab-btn" onclick="switchTab(this,'Manage')">Manage</button>
+    <button class="tab-btn" onclick="switchTab(this,'Modify')">Modify</button>
+  </div>
+  <div class="panel-row" id="ribbon-content"></div>
+</div>
+
+<!-- SCENARIO STRIP -->
+<div id="scenario-strip">
+  <span class="sc-label">Guided Scenarios:</span>
+  <button class="sc-btn active" data-sc="0" onclick="applyScenario(0)">1 · Existing</button>
+  <button class="sc-btn" data-sc="1" onclick="applyScenario(1)">2 · NC Demolition</button>
+  <button class="sc-btn" data-sc="2" onclick="applyScenario(2)">3 · New Programme</button>
+  <button class="sc-btn" data-sc="3" onclick="applyScenario(3)">4 · NC Complete</button>
+  <button class="sc-btn" data-sc="4" onclick="applyScenario(4)">5 · New Only</button>
+  <button class="sc-btn" data-sc="5" onclick="applyScenario(5)">6 · Room Split</button>
+  <span id="sc-note"></span>
+</div>
+
+<!-- WORKSPACE -->
+<div id="workspace">
+
+  <!-- PROJECT BROWSER -->
+  <div id="proj-browser">
+    <div class="side-header">Project Browser – phase-demo.rvt</div>
+    <div class="tree" id="proj-tree"></div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-col">
+    <div id="view-tab">
+      <span id="view-tab-name">Floor Plan: Existing</span>
+      <button id="view-tab-close">✕</button>
+    </div>
+    <div id="canvas-area">
+      <svg id="fp">
+        <defs>
+          <!-- Hover glow: orange/amber like Revit highlight -->
+          <filter id="f-hover" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+            <feFlood flood-color="#ff8800" flood-opacity="0.9" result="clr"/>
+            <feComposite in="clr" in2="blur" operator="in" result="glow"/>
+            <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Wall hover: bright amber glow -->
+          <filter id="f-hover-wall" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+            <feFlood flood-color="#ff8800" flood-opacity="1" result="clr"/>
+            <feComposite in="clr" in2="blur" operator="in" result="glow"/>
+            <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Selection glow: blue -->
+          <filter id="f-select" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+            <feFlood flood-color="#0077ee" flood-opacity="0.9" result="clr"/>
+            <feComposite in="clr" in2="blur" operator="in" result="glow"/>
+            <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Hatch for demolished overlay -->
+          <pattern id="hatch-demo" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+            <rect width="10" height="10" fill="none"/>
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#d888aa" stroke-width="3.5"/>
+          </pattern>
+        </defs>
+        <!-- Viewport transform group — zoom/pan applied here -->
+        <g id="vp">
+          <!-- Canvas background (infinite, grey like Revit) -->
+          <rect id="canvas-bg" x="-9999" y="-9999" width="99999" height="99999" fill="#808080"/>
+          <!-- Floor plan layers -->
+          <g id="g-rooms"></g>
+          <g id="g-walls"></g>
+          <g id="g-labels"></g>
+          <!-- Hover highlight overlay (drawn on top, pointer-events:none) -->
+          <g id="g-hover" style="pointer-events:none"></g>
+          <!-- Selection overlay + handles -->
+          <g id="g-selection" style="pointer-events:none"></g>
+        </g>
+      </svg>
+      <!-- Canvas overlays -->
+      <div id="coord-overlay">X: 0  Y: 0</div>
+      <div id="zoom-badge">100%</div>
+      <div id="key-hint">Scroll: zoom &nbsp;·&nbsp; RMB drag: pan &nbsp;·&nbsp; Click: select &nbsp;·&nbsp; Esc: deselect &nbsp;·&nbsp; ZE: fit view</div>
+    </div>
+    <!-- VIEW CONTROL BAR -->
+    <div id="vcb">
+      <button class="vcb-btn" title="View Scale">1 : 100</button>
+      <div class="vcb-div"></div>
+      <button class="vcb-btn" title="Detail Level">Coarse</button>
+      <div class="vcb-div"></div>
+      <button class="vcb-btn" title="Visual Style">Wireframe</button>
+      <div class="vcb-div"></div>
+      <button class="vcb-btn" title="Sun Path">☀</button>
+      <button class="vcb-btn" title="Shadows">⛅</button>
+      <div class="vcb-div"></div>
+      <button class="vcb-btn" onclick="fitView()" title="Zoom Extents (ZE)">⤢ ZE</button>
+      <button class="vcb-btn" onclick="zoomIn()" title="Zoom In (+)">＋</button>
+      <button class="vcb-btn" onclick="zoomOut()" title="Zoom Out (−)">－</button>
+      <div class="vcb-div"></div>
+      <span id="vcb-zoom">100%</span>
+      <div class="vcb-div"></div>
+      <div id="vcb-phase">Phase: <strong id="vcb-phase-name">Existing</strong></div>
+      <div class="vcb-div"></div>
+      <button class="vcb-btn" title="Temporary Hide/Isolate">⊙</button>
+    </div>
+  </div>
+
+  <!-- PROPERTIES PANEL -->
+  <div id="prop-panel">
+    <div class="side-header">Properties</div>
+    <div class="prop-type-bar" id="prop-type-bar">
+      <div class="prop-type-label">Floor Plan</div>
+      <div class="prop-type-name">Level 1</div>
+    </div>
+    <div id="prop-scroll"></div>
+  </div>
+
+</div><!-- /workspace -->
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <span id="status-msg">Click to select elements. Hover for phase info. Scroll to zoom, RMB-drag to pan.</span>
+  <div class="legend-row">
+    <div class="legend-item"><div class="legend-swatch" style="background:#cde8f6"></div>Existing</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ccf0e0"></div>New</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#f0d0e8"></div>Demolished</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#f0f0d8"></div>Future Fit-Out</div>
+  </div>
+</div>
+
+</div><!-- /shell -->
+<div id="tooltip"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+
+const PHASES = ["Existing","New Construction","Future Fit-Out"];
+
+const FILTERS = {
+  "all":       {label:"Show All",                 existing:1,demolished:1,new_:1,future:0},
+  "prev-demo": {label:"Show Previous + Demolish", existing:1,demolished:1,new_:0,future:0},
+  "prev-new":  {label:"Show Previous + New",      existing:1,demolished:0,new_:1,future:0},
+  "complete":  {label:"Show Complete",            existing:1,demolished:0,new_:1,future:0},
+  "new":       {label:"Show New",                 existing:0,demolished:0,new_:1,future:0},
+};
+
+const SCENARIOS = [
+  {phase:0,filter:"complete",  viewName:"Floor Plan: Existing",        note:"Original building: 9 rooms, all walls solid. Hover any room or wall to inspect Phase Created / Phase Demolished."},
+  {phase:1,filter:"prev-demo", viewName:"Floor Plan: NC – Demolition", note:"New Construction demolition scope: Storage, Lobby, Reception 12 and their walls shown demolished (red dashed / pink fill)."},
+  {phase:1,filter:"prev-new",  viewName:"Floor Plan: NC – New Programme",note:"New programme overlaid: Conference Room 18 + Reception 17 (green) and new dividing wall (blue), alongside surviving existing rooms."},
+  {phase:1,filter:"complete",  viewName:"Floor Plan: NC – Complete",   note:"Finished New Construction state: demolished elements hidden; new rooms replace old programme in the left column."},
+  {phase:1,filter:"new",       viewName:"Floor Plan: NC – New Only",   note:"New-only view: only elements created in New Construction — useful for contractor scope packages."},
+  {phase:2,filter:"prev-demo", viewName:"Floor Plan: Future Fit-Out",  note:"Future Fit-Out splits Meeting Room 3 into Breakout 19 + Lounge 20. MR3 demolished — hover to see room identity discontinuity (15→19/20)."},
+];
+
+const WALLS = [
+  {id:"ow1",  c:0,d:null,desc:"Outer top-left",               pts:[{x:58,y:148},{x:238,y:148}]},
+  {id:"ow2",  c:0,d:null,desc:"Bump-out left",                pts:[{x:238,y:148},{x:238,y:32}]},
+  {id:"ow3",  c:0,d:null,desc:"Bump-out top",                 pts:[{x:238,y:32},{x:472,y:32}]},
+  {id:"ow4",  c:0,d:null,desc:"Bump-out right",               pts:[{x:472,y:32},{x:472,y:148}]},
+  {id:"ow5",  c:0,d:null,desc:"Outer top-right",              pts:[{x:472,y:148},{x:648,y:148}]},
+  {id:"ow6",  c:0,d:null,desc:"Outer right",                  pts:[{x:648,y:148},{x:648,y:930}]},
+  {id:"ow7",  c:0,d:null,desc:"Outer bottom",                 pts:[{x:58,y:930},{x:648,y:930}]},
+  {id:"ow8",  c:0,d:null,desc:"Outer left",                   pts:[{x:58,y:148},{x:58,y:930}]},
+  {id:"iw_bb",c:0,d:null,desc:"Bump-out base",                pts:[{x:238,y:148},{x:472,y:148}]},
+  {id:"iw3",  c:0,d:null,desc:"Office 11 left",               pts:[{x:472,y:148},{x:472,y:575}]},
+  {id:"iw4",  c:0,d:null,desc:"Upper/lower divide L",         pts:[{x:58,y:575},{x:316,y:575}]},
+  {id:"iw4b", c:0,d:null,desc:"Lobby/corridor top",           pts:[{x:316,y:575},{x:440,y:575}]},
+  {id:"iw5",  c:0,d:null,desc:"Upper/lower divide R",         pts:[{x:440,y:575},{x:648,y:575}]},
+  {id:"iw6",  c:0,d:null,desc:"Corridor left",                pts:[{x:316,y:575},{x:316,y:782}]},
+  {id:"iw7",  c:0,d:null,desc:"Corridor right",               pts:[{x:440,y:575},{x:440,y:782}]},
+  {id:"iw11", c:0,d:null,desc:"MR3 top",                      pts:[{x:58,y:782},{x:648,y:782}]},
+  {id:"nw1",  c:1,d:null,desc:"Conf Room / Reception divide", pts:[{x:58,y:390},{x:472,y:390}]},
+  {id:"nw2",  c:2,d:null,desc:"MR3 split (Breakout | Lounge)",pts:[{x:353,y:782},{x:353,y:930}]},
+  {id:"dw1",  c:0,d:1,   desc:"Storage | Lobby vertical",     pts:[{x:265,y:148},{x:265,y:575}]},
+  {id:"dw2",  c:0,d:1,   desc:"Storage | Reception horiz",    pts:[{x:58,y:345},{x:265,y:345}]},
+];
+
+const ROOMS = [
+  {id:"r8",  name:"OFFICE",         num:"8",  c:0,d:null,poly:[{x:238,y:32},{x:472,y:32},{x:472,y:148},{x:238,y:148}],lx:355,ly:90},
+  {id:"r10", name:"LOBBY",          num:"10", c:0,d:1,   poly:[{x:265,y:148},{x:472,y:148},{x:472,y:575},{x:265,y:575}],lx:368,ly:362},
+  {id:"r11", name:"OFFICE",         num:"11", c:0,d:null,poly:[{x:472,y:148},{x:648,y:148},{x:648,y:575},{x:472,y:575}],lx:560,ly:362},
+  {id:"r14", name:"Meeting Room 1", num:"14", c:0,d:null,poly:[{x:58,y:575},{x:316,y:575},{x:316,y:782},{x:58,y:782}],lx:187,ly:676},
+  {id:"r13", name:"Meeting Room 2", num:"13", c:0,d:null,poly:[{x:440,y:575},{x:648,y:575},{x:648,y:782},{x:440,y:782}],lx:544,ly:676},
+  {id:"r16", name:"Corridor",       num:"16", c:0,d:null,poly:[{x:316,y:575},{x:440,y:575},{x:440,y:782},{x:316,y:782}],lx:378,ly:679},
+  {id:"r15", name:"Meeting Room 3", num:"15", c:0,d:2,   poly:[{x:58,y:782},{x:648,y:782},{x:648,y:930},{x:58,y:930}],lx:353,ly:856},
+  {id:"r9",  name:"STORAGE",        num:"9",  c:0,d:1,   poly:[{x:58,y:148},{x:265,y:148},{x:265,y:345},{x:58,y:345}],lx:162,ly:246},
+  {id:"r12", name:"RECEPTION",      num:"12", c:0,d:1,   poly:[{x:58,y:345},{x:265,y:345},{x:265,y:575},{x:58,y:575}],lx:162,ly:460},
+  {id:"r18", name:"Conference Room",num:"18", c:1,d:null,poly:[{x:58,y:148},{x:472,y:148},{x:472,y:390},{x:58,y:390}],lx:265,ly:269},
+  {id:"r17", name:"RECEPTION",      num:"17", c:1,d:null,poly:[{x:58,y:390},{x:472,y:390},{x:472,y:575},{x:58,y:575}],lx:265,ly:483},
+  {id:"r19", name:"BREAKOUT",       num:"19", c:2,d:null,poly:[{x:58,y:782},{x:353,y:782},{x:353,y:930},{x:58,y:930}],lx:205,ly:856},
+  {id:"r20", name:"LOUNGE",         num:"20", c:2,d:null,poly:[{x:353,y:782},{x:648,y:782},{x:648,y:930},{x:353,y:930}],lx:500,ly:856},
+];
+
+// ── PHASE LOGIC ──────────────────────────────────────────────────────────────
+
+function elemStatus(e,pi){
+  const {c,d}=e;
+  if(c>pi)              return "future";
+  if(d!==null&&d<pi)    return "past";
+  if(d===pi)            return "demolished";
+  if(c===pi&&c>0)       return "new_";
+  return "existing";
+}
+function isVisible(st,fk){if(st==="past")return false;return !!(FILTERS[fk][st]??0)}
+function dispStyle(st,e){if(st==="new_"&&e.c>=2)return"fitout";return st}
+
+const WALL_STYLE={
+  existing:  {stroke:"#1a1a1a",w:5,  dash:"",   op:1},
+  demolished:{stroke:"#cc3300",w:2.5,dash:"8,5",op:1},
+  new_:      {stroke:"#0055aa",w:5,  dash:"",   op:1},
+  fitout:    {stroke:"#6a6a5a",w:4,  dash:"6,4",op:1},
+  future:    {stroke:"#888",   w:2,  dash:"5,4",op:0.4},
+};
+const ROOM_STYLE={
+  existing:  {fill:"#cde8f6",stroke:"#a0c8e0"},
+  demolished:{fill:"#f0d0e8",stroke:"#d8a0c4"},
+  new_:      {fill:"#ccf0e0",stroke:"#88d4aa"},
+  fitout:    {fill:"#f0f0d8",stroke:"#c8c8a0"},
+  future:    {fill:"#f0f0d8",stroke:"#c8c8a0"},
+};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+
+let curPhase=0, curFilter="complete", activeScIdx=0;
+let selectedElem=null, selectedKind=null;
+let hoveredElem=null, hoveredKind=null;
+
+// ── SVG UTILS ────────────────────────────────────────────────────────────────
+
+const NS="http://www.w3.org/2000/svg";
+function svgEl(tag,attrs,parent){
+  const e=document.createElementNS(NS,tag);
+  for(const[k,v]of Object.entries(attrs))e.setAttribute(k,String(v));
+  if(parent)parent.appendChild(e);
+  return e;
+}
+function pts2str(pts){return pts.map(p=>`${p.x},${p.y}`).join(" ")}
+
+// ── ZOOM / PAN ───────────────────────────────────────────────────────────────
+
+const fp     = document.getElementById("fp");
+const vpGrp  = document.getElementById("vp");
+const carea  = document.getElementById("canvas-area");
+
+let vp = {tx:0, ty:0, s:1};  // current viewport transform
+
+function applyVP(){
+  vpGrp.setAttribute("transform",`translate(${vp.tx},${vp.ty}) scale(${vp.s})`);
+  const pct = Math.round(vp.s*100);
+  document.getElementById("vcb-zoom").textContent = pct+"%";
+  document.getElementById("zoom-badge").textContent = pct+"%";
+}
+
+function fitView(){
+  const r = fp.getBoundingClientRect();
+  const W=r.width, H=r.height;
+  const cW=706, cH=962, pad=60;
+  const s=Math.min((W-pad*2)/cW,(H-pad*2)/cH);
+  vp = {tx:(W-cW*s)/2, ty:(H-cH*s)/2, s};
+  applyVP();
+}
+
+function zoomAt(mx,my,factor){
+  // mx,my = mouse position in SVG element coords
+  const ns = Math.max(0.02, Math.min(40, vp.s*factor));
+  vp.tx = mx - (mx-vp.tx)*(ns/vp.s);
+  vp.ty = my - (my-vp.ty)*(ns/vp.s);
+  vp.s  = ns;
+  applyVP();
+}
+function zoomIn() { const r=fp.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.2); }
+function zoomOut(){ const r=fp.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.2); }
+
+// Convert screen coords → model coords
+function screenToModel(sx,sy){
+  const r = fp.getBoundingClientRect();
+  return { x: (sx-r.left-vp.tx)/vp.s, y: (sy-r.top-vp.ty)/vp.s };
+}
+
+// ── MOUSE EVENTS ─────────────────────────────────────────────────────────────
+
+let isPanning=false, panOrigin={x:0,y:0}, vpAtPan={tx:0,ty:0,s:1};
+let didPan=false;
+
+fp.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r=fp.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const factor = e.deltaY<0 ? 1.15 : 1/1.15;
+  zoomAt(mx,my,factor);
+}, {passive:false});
+
+fp.addEventListener("mousedown", e => {
+  if(e.button===1||e.button===2){   // middle or right
+    isPanning=true; didPan=false;
+    panOrigin={x:e.clientX,y:e.clientY};
+    vpAtPan={...vp};
+    fp.classList.add("panning");
+    e.preventDefault();
+  }
+});
+
+fp.addEventListener("mousemove", e => {
+  if(isPanning){
+    const dx=e.clientX-panOrigin.x, dy=e.clientY-panOrigin.y;
+    if(Math.abs(dx)>2||Math.abs(dy)>2) didPan=true;
+    vp.tx=vpAtPan.tx+dx; vp.ty=vpAtPan.ty+dy;
+    applyVP();
+  }
+  // Coordinate display
+  const m=screenToModel(e.clientX,e.clientY);
+  document.getElementById("coord-overlay").textContent =
+    `X: ${Math.round(m.x)}  Y: ${Math.round(m.y)}`;
+});
+
+window.addEventListener("mouseup", e => {
+  if(e.button===1||e.button===2){
+    isPanning=false;
+    fp.classList.remove("panning");
+  }
+});
+
+fp.addEventListener("contextmenu", e=>e.preventDefault());
+
+// Click on empty canvas → deselect
+fp.addEventListener("click", e => {
+  if(didPan){didPan=false;return;}
+  // only deselect if click landed on the background, not an element
+  const tgt=e.target;
+  if(tgt===fp||tgt===document.getElementById("canvas-bg")||tgt===document.getElementById("sheet-bg")||tgt===vpGrp){
+    selectElem(null,null);
+  }
+});
+
+// Keyboard
+window.addEventListener("keydown", e => {
+  if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT")return;
+  if(e.key==="Escape") selectElem(null,null);
+  if(e.key==="+"||e.key==="=") zoomIn();
+  if(e.key==="-") zoomOut();
+  // ZE = zoom extents (type Z then E — just check for E after Z within 500ms)
+  if(e.key.toLowerCase()==="z") window._zPressed=true;
+  if(e.key.toLowerCase()==="e"&&window._zPressed){ fitView(); window._zPressed=false; }
+  setTimeout(()=>window._zPressed=false,600);
+});
+
+// ── HOVER OVERLAY ────────────────────────────────────────────────────────────
+
+const gHover     = document.getElementById("g-hover");
+const gSelection = document.getElementById("g-selection");
+
+function showHoverRoom(room){
+  gHover.innerHTML="";
+  svgEl("polygon",{points:pts2str(room.poly),fill:"rgba(255,140,0,0.25)",stroke:"#ff8800",
+    "stroke-width":"3","stroke-linejoin":"round",filter:"url(#f-hover)"},gHover);
+}
+function showHoverWall(wall){
+  gHover.innerHTML="";
+  svgEl("polyline",{points:pts2str(wall.pts),fill:"none",stroke:"#ff8800",
+    "stroke-width":"8","stroke-linecap":"square","stroke-linejoin":"round",
+    opacity:"0.7",filter:"url(#f-hover-wall)"},gHover);
+}
+function clearHover(){ gHover.innerHTML=""; }
+
+function showSelectionRoom(room){
+  gSelection.innerHTML="";
+  // Blue fill overlay
+  svgEl("polygon",{points:pts2str(room.poly),fill:"rgba(0,100,220,0.18)",stroke:"#0077ee",
+    "stroke-width":"2.5","stroke-dasharray":"8,4","stroke-linejoin":"round"},gSelection);
+  // Corner handles
+  const xs=room.poly.map(p=>p.x), ys=room.poly.map(p=>p.y);
+  const x1=Math.min(...xs),y1=Math.min(...ys),x2=Math.max(...xs),y2=Math.max(...ys);
+  const midX=(x1+x2)/2, midY=(y1+y2)/2;
+  const handlePts=[[x1,y1],[midX,y1],[x2,y1],[x2,midY],[x2,y2],[midX,y2],[x1,y2],[x1,midY]];
+  handlePts.forEach(([hx,hy])=>
+    svgEl("rect",{x:hx-4,y:hy-4,width:8,height:8,fill:"#fff",stroke:"#0077ee","stroke-width":"1.5",rx:"1"},gSelection)
+  );
+}
+function showSelectionWall(wall){
+  gSelection.innerHTML="";
+  svgEl("polyline",{points:pts2str(wall.pts),fill:"none",stroke:"#0077ee",
+    "stroke-width":"6","stroke-linecap":"square",opacity:"0.5"},gSelection);
+  // Endpoint handles
+  wall.pts.forEach(p=>
+    svgEl("rect",{x:p.x-4,y:p.y-4,width:8,height:8,fill:"#fff",stroke:"#0077ee","stroke-width":"1.5",rx:"1"},gSelection)
+  );
+}
+function clearSelection(){ gSelection.innerHTML=""; }
+
+function selectElem(elem,kind){
+  selectedElem=elem; selectedKind=kind;
+  clearSelection();
+  if(elem){
+    if(kind==="room")      showSelectionRoom(elem);
+    else if(kind==="wall") showSelectionWall(elem);
+    renderPropertiesElement(elem,kind);
+    document.getElementById("status-msg").textContent=
+      `Selected: ${kind==="room"?elem.name+" ("+elem.num+")":elem.desc} — Phase Created: ${PHASES[elem.c]}${elem.d!==null?", Phase Demolished: "+PHASES[elem.d]:""}`;
+  } else {
+    renderPropertiesView();
+    document.getElementById("status-msg").textContent=
+      "Click to select elements. Hover for phase info. Scroll to zoom, RMB-drag to pan.";
+  }
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+
+function render(animate){
+  if(animate){
+    fp.style.transition="opacity .2s";
+    fp.style.opacity="0.15";
+    setTimeout(()=>{doRender();fp.style.opacity="1";fp.style.transition="";},200);
+  } else doRender();
+}
+
+function doRender(){
+  const pi=curPhase, fk=curFilter;
+  const gR=document.getElementById("g-rooms");
+  const gW=document.getElementById("g-walls");
+  const gL=document.getElementById("g-labels");
+  gR.innerHTML=gW.innerHTML=gL.innerHTML="";
+  clearHover(); clearSelection(); selectedElem=null; selectedKind=null;
+
+  // ── Pass 1: non-demolished fills
+  ROOMS.forEach(room=>{
+    const st=elemStatus(room,pi);
+    if(!isVisible(st,fk)||st==="demolished")return;
+    const vis=dispStyle(st,room);
+    const rs=ROOM_STYLE[vis]||ROOM_STYLE.existing;
+    const op=vis==="future"?0.45:1;
+    const poly=svgEl("polygon",{points:pts2str(room.poly),fill:rs.fill,stroke:rs.stroke,
+      "stroke-width":"1",opacity:op},gR);
+    poly.style.cursor="pointer";
+    attachElemEvents(poly,room,"room");
+  });
+
+  // ── Pass 2: demolished fills
+  ROOMS.forEach(room=>{
+    const st=elemStatus(room,pi);
+    if(!isVisible(st,fk)||st!=="demolished")return;
+    const rs=ROOM_STYLE.demolished;
+    const poly=svgEl("polygon",{points:pts2str(room.poly),fill:rs.fill,stroke:rs.stroke,
+      "stroke-width":"1",opacity:fk==="all"?0.55:1},gR);
+    poly.style.cursor="pointer";
+    attachElemEvents(poly,room,"room");
+  });
+
+  // ── Labels
+  ROOMS.forEach(room=>{
+    const st=elemStatus(room,pi);
+    if(!isVisible(st,fk))return;
+    const isDm=(st==="demolished");
+    const nc=isDm?"#cc3300":"#1a2a3a";
+    const g=document.createElementNS(NS,"g");
+    g.style.pointerEvents="none";
+    const n=svgEl("text",{x:room.lx,y:room.ly-10,"text-anchor":"middle","font-family":"Arial",
+      "font-size":room.name.length>10?"9.5":"10.5","font-weight":"600","letter-spacing":"0.4",fill:nc},g);
+    n.textContent=room.name;
+    if(room.num){
+      svgEl("rect",{x:room.lx-11,y:room.ly+1,width:22,height:15,fill:"white",
+        stroke:isDm?"#cc3300":"#333","stroke-width":"1",rx:"2"},g);
+      const nm=svgEl("text",{x:room.lx,y:room.ly+12,"text-anchor":"middle",
+        "font-family":"Arial","font-size":"9","font-weight":"700",fill:nc},g);
+      nm.textContent=room.num;
+    }
+    gL.appendChild(g);
+  });
+
+  // ── Walls
+  WALLS.forEach(wall=>{
+    const st=elemStatus(wall,pi);
+    if(!isVisible(st,fk))return;
+    const vis=dispStyle(st,wall);
+    const ws=WALL_STYLE[vis]||WALL_STYLE.existing;
+    // Wider invisible hit area for easier clicking
+    const hit=svgEl("polyline",{points:pts2str(wall.pts),fill:"none",stroke:"transparent",
+      "stroke-width":Math.max(ws.w,10),"stroke-linecap":"square"},gW);
+    hit.style.cursor="pointer";
+    attachElemEvents(hit,wall,"wall");
+    // Visual line
+    const line=svgEl("polyline",{points:pts2str(wall.pts),fill:"none",stroke:ws.stroke,
+      "stroke-width":ws.w,"stroke-dasharray":ws.dash,"stroke-linecap":"square",opacity:ws.op},gW);
+    line.style.pointerEvents="none";
+  });
+
+  // ── Stats
+  let ex=0,dm=0,nw=0,fu=0,hid=0;
+  [...WALLS,...ROOMS].forEach(e=>{
+    const s=elemStatus(e,pi);
+    if(!isVisible(s,fk)){hid++;return}
+    if(s==="existing")ex++;else if(s==="demolished")dm++;else if(s==="new_")nw++;else if(s==="future")fu++;
+  });
+  let txt=`Visible — existing: ${ex}`;
+  if(dm)txt+=` · demolished: ${dm}`;
+  if(nw)txt+=` · new: ${nw}`;
+  if(fu)txt+=` · future: ${fu}`;
+  if(hid)txt+=` · hidden by filter: ${hid}`;
+  document.getElementById("status-msg").textContent=txt+" — Click element to select, Esc to deselect.";
+
+  document.getElementById("vcb-phase-name").textContent=PHASES[pi];
+  const rp=document.getElementById("ribbon-phase-sel");
+  const rf=document.getElementById("ribbon-filter-sel");
+  if(rp)rp.value=pi;
+  if(rf)rf.value=fk;
+  renderPropertiesView();
+}
+
+// ── ELEMENT EVENT HANDLERS ───────────────────────────────────────────────────
+
+const tip=document.getElementById("tooltip");
+
+function attachElemEvents(el,elem,kind){
+  el.addEventListener("mouseenter",e=>{
+    hoveredElem=elem; hoveredKind=kind;
+    if(kind==="room") showHoverRoom(elem); else showHoverWall(elem);
+    showTip(e,elem,kind);
+    renderPropertiesElement(elem,kind);
+  });
+  el.addEventListener("mousemove",moveTip);
+  el.addEventListener("mouseleave",()=>{
+    hoveredElem=null; hoveredKind=null;
+    clearHover(); hideTip();
+    if(selectedElem) renderPropertiesElement(selectedElem,selectedKind);
+    else renderPropertiesView();
+  });
+  el.addEventListener("click",e=>{
+    e.stopPropagation();
+    selectElem(elem,kind);
+    // Keep hover highlight on top of selection
+    if(kind==="room") showHoverRoom(elem); else showHoverWall(elem);
+  });
+}
+
+function showTip(e,elem,kind){
+  const st=elemStatus(elem,curPhase);
+  const label=kind==="room"?`${elem.name}${elem.num?" ("+elem.num+")":""}`:elem.desc||elem.id;
+  tip.innerHTML=`<div class="tt-title">${label}</div>`+
+    `<div><span class="tt-lbl">ID:</span> ${elem.id}</div>`+
+    `<div><span class="tt-lbl">Phase Created:</span> ${PHASES[elem.c]??'—'}</div>`+
+    `<div><span class="tt-lbl">Phase Demolished:</span> ${elem.d!==null?PHASES[elem.d]:'—'}</div>`+
+    `<div><span class="tt-lbl">Status at view:</span> <span class="tt-st">${st}</span></div>`;
+  tip.classList.add("show"); moveTip(e);
+}
+function moveTip(e){tip.style.left=(e.clientX+16)+"px";tip.style.top=(e.clientY+14)+"px"}
+function hideTip(){tip.classList.remove("show")}
+
+// ── RIBBON ───────────────────────────────────────────────────────────────────
+
+const TAB_CONTENT={
+  View:`
+    <div class="r-panel">
+      <div class="r-panel-body">
+        <button class="r-icon-btn"><span class="ico">🪟</span><span class="lbl">Visual Style</span></button>
+        <button class="r-icon-btn"><span class="ico">☁</span><span class="lbl">Shadows</span></button>
+        <button class="r-icon-btn"><span class="ico">✦</span><span class="lbl">Rendering</span></button>
+      </div><div class="r-panel-title">Graphics</div>
+    </div>
+    <div class="r-panel highlight">
+      <div class="r-panel-body">
+        <div class="phasing-body">
+          <div class="phasing-row">
+            <label class="phasing-lbl">Phase</label>
+            <select class="phasing-sel" id="ribbon-phase-sel" onchange="onRibbonPhase(this.value)">
+              ${PHASES.map((p,i)=>`<option value="${i}">${p}</option>`).join("")}
+            </select>
+          </div>
+          <div class="phasing-row">
+            <label class="phasing-lbl">Phase Filter</label>
+            <select class="phasing-sel" id="ribbon-filter-sel" onchange="onRibbonFilter(this.value)">
+              ${Object.entries(FILTERS).map(([k,f])=>`<option value="${k}">${f.label}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+      </div><div class="r-panel-title">Phasing</div>
+    </div>
+    <div class="r-panel">
+      <div class="r-panel-body">
+        <button class="r-icon-btn"><span class="ico">⊞</span><span class="lbl">Duplicate</span></button>
+        <button class="r-icon-btn"><span class="ico">▤</span><span class="lbl">Template</span></button>
+      </div><div class="r-panel-title">Create</div>
+    </div>
+    <div class="r-panel">
+      <div class="r-panel-body">
+        <button class="r-icon-btn" onclick="fitView()"><span class="ico">⤢</span><span class="lbl">Zoom Extents</span></button>
+        <button class="r-icon-btn" onclick="zoomIn()"><span class="ico">＋</span><span class="lbl">Zoom In</span></button>
+        <button class="r-icon-btn" onclick="zoomOut()"><span class="ico">－</span><span class="lbl">Zoom Out</span></button>
+      </div><div class="r-panel-title">Viewport</div>
+    </div>`,
+  Architecture:`
+    <div class="r-panel"><div class="r-panel-body">
+      <button class="r-icon-btn"><span class="ico">▬</span><span class="lbl">Wall</span></button>
+      <button class="r-icon-btn"><span class="ico">⬓</span><span class="lbl">Door</span></button>
+      <button class="r-icon-btn"><span class="ico">⊡</span><span class="lbl">Window</span></button>
+    </div><div class="r-panel-title">Build</div></div>
+    <div class="r-panel"><div class="r-panel-body">
+      <button class="r-icon-btn"><span class="ico">⬜</span><span class="lbl">Room</span></button>
+      <button class="r-icon-btn"><span class="ico">╌</span><span class="lbl">Separator</span></button>
+      <button class="r-icon-btn"><span class="ico">🏷</span><span class="lbl">Tag Room</span></button>
+    </div><div class="r-panel-title">Room & Area</div></div>`,
+};
+
+function switchTab(btn,name){
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  const html=TAB_CONTENT[name]||
+    `<div class="r-panel"><div class="r-panel-body" style="padding:10px;font-size:11px;color:#888">
+     Select the <strong>View</strong> tab for Phasing controls.</div><div class="r-panel-title">${name}</div></div>`;
+  document.getElementById("ribbon-content").innerHTML=html;
+  const rp=document.getElementById("ribbon-phase-sel");
+  const rf=document.getElementById("ribbon-filter-sel");
+  if(rp)rp.value=curPhase; if(rf)rf.value=curFilter;
+}
+
+function onRibbonPhase(v){curPhase=+v;activeScIdx=-1;syncScBtns();render(true)}
+function onRibbonFilter(v){curFilter=v;activeScIdx=-1;syncScBtns();render(true)}
+
+// ── PROJECT BROWSER ──────────────────────────────────────────────────────────
+
+function buildProjectBrowser(){
+  const tree=document.getElementById("proj-tree");
+  const viewItems=SCENARIOS.map((sc,i)=>
+    `<div class="tree-view${i===0?" active":""}" data-sc="${i}" onclick="applyScenario(${i})">
+       👁 ${sc.viewName}</div>`).join("");
+  tree.innerHTML=`
+    <div class="tree-node-hdr" onclick="toggleNode(this)"><span>▼</span> Views (all)</div>
+    <div class="tree-children open">
+      <div class="tree-node-hdr" style="padding-left:20px" onclick="toggleNode(this)"><span>▼</span> Floor Plans</div>
+      <div class="tree-children open" id="fp-views">${viewItems}</div>
+      <div class="tree-node-hdr" style="padding-left:20px" onclick="toggleNode(this)"><span>▶</span> 3D Views</div>
+      <div class="tree-children"><div class="tree-view" style="padding-left:44px">👁 {3D}</div></div>
+    </div>
+    <div class="tree-node-hdr" onclick="toggleNode(this)"><span>▶</span> Sheets (all)</div>
+    <div class="tree-children">
+      <div class="tree-view" style="padding-left:32px">📋 A101 – Site Plan</div>
+      <div class="tree-view" style="padding-left:32px">📋 A201 – Floor Plans</div>
+    </div>
+    <div class="tree-node-hdr" onclick="toggleNode(this)"><span>▶</span> Families</div>
+    <div class="tree-children"></div>`;
+}
+
+function toggleNode(hdr){
+  const arr=hdr.querySelector("span");
+  const ch=hdr.nextElementSibling;
+  if(!ch||!ch.classList.contains("tree-children"))return;
+  const open=ch.classList.toggle("open");
+  arr.textContent=open?"▼":"▶";
+}
+
+// ── PROPERTIES PANEL ─────────────────────────────────────────────────────────
+
+const PROP_STATIC_TOP=`
+  <div class="prop-section">
+    <div class="prop-section-hdr" onclick="toggleProp(this)">▼ Identity Data</div>
+    <div class="prop-section-body">
+      <div class="prop-row"><div class="prop-lbl">View Name</div><div class="prop-val">Level 1</div></div>
+      <div class="prop-row"><div class="prop-lbl">Dependency</div><div class="prop-val">Independent</div></div>
+    </div>
+  </div>
+  <div class="prop-section">
+    <div class="prop-section-hdr" onclick="toggleProp(this)">▶ Graphics</div>
+  </div>
+  <div class="prop-section">
+    <div class="prop-section-hdr" onclick="toggleProp(this)">▶ Extents</div>
+  </div>`;
+
+function renderPropertiesView(){
+  document.getElementById("prop-type-bar").innerHTML=
+    `<div class="prop-type-label">Floor Plan</div><div class="prop-type-name">Level 1</div>`;
+  document.getElementById("prop-scroll").innerHTML=PROP_STATIC_TOP+`
+  <div class="prop-section">
+    <div class="prop-section-hdr accent" onclick="toggleProp(this)">▼ Phasing</div>
+    <div class="prop-section-body">
+      <div class="prop-row">
+        <div class="prop-lbl">Phase Filter</div>
+        <div class="prop-val"><select onchange="onPropFilter(this.value)">
+          ${Object.entries(FILTERS).map(([k,f])=>`<option value="${k}" ${k===curFilter?"selected":""}>${f.label}</option>`).join("")}
+        </select></div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-lbl">Phase</div>
+        <div class="prop-val"><select onchange="onPropPhase(this.value)">
+          ${PHASES.map((p,i)=>`<option value="${i}" ${i===curPhase?"selected":""}>${p}</option>`).join("")}
+        </select></div>
+      </div>
+    </div>
+  </div>
+  <div class="prop-tip">Hover a room or wall on the canvas to inspect phase properties.</div>`;
+}
+
+const ST_COLORS={existing:"#1565a0",new_:"#2e7d52",demolished:"#cc3300",future:"#7a7a1a",fitout:"#7a7a1a"};
+const ST_LABELS={existing:"Existing",new_:"New",demolished:"Demolished",future:"Future",fitout:"Future Fit-Out"};
+
+function renderPropertiesElement(elem,kind){
+  const st=elemStatus(elem,curPhase);
+  const label=kind==="room"?`${elem.name}${elem.num?" ("+elem.num+")":""}`:elem.desc||elem.id;
+  document.getElementById("prop-type-bar").innerHTML=
+    `<div class="prop-type-label">${kind==="room"?"Room":"Wall"}</div><div class="prop-type-name">${label}</div>`;
+  document.getElementById("prop-scroll").innerHTML=`
+  <div class="prop-section">
+    <div class="prop-section-hdr" onclick="toggleProp(this)">▼ Identity Data</div>
+    <div class="prop-section-body">
+      <div class="prop-row"><div class="prop-lbl">Element ID</div><div class="prop-val">${elem.id}</div></div>
+      ${kind==="room"&&elem.num?`<div class="prop-row"><div class="prop-lbl">Room Number</div><div class="prop-val">${elem.num}</div></div>`:""}
+      ${kind==="room"?`<div class="prop-row"><div class="prop-lbl">Name</div><div class="prop-val">${elem.name}</div></div>`:""}
+      ${kind==="wall"?`<div class="prop-row"><div class="prop-lbl">Description</div><div class="prop-val">${elem.desc}</div></div>`:""}
+    </div>
+  </div>
+  <div class="prop-section">
+    <div class="prop-section-hdr accent" onclick="toggleProp(this)">▼ Phasing</div>
+    <div class="prop-section-body">
+      <div class="prop-row"><div class="prop-lbl">Phase Created</div><div class="prop-val">${PHASES[elem.c]??'—'}</div></div>
+      <div class="prop-row"><div class="prop-lbl">Phase Demolished</div><div class="prop-val">${elem.d!==null?PHASES[elem.d]:'—'}</div></div>
+      <div class="prop-row">
+        <div class="prop-lbl">Status at View</div>
+        <div class="prop-val" style="color:${ST_COLORS[st]||'#333'};font-weight:600">${ST_LABELS[st]||st}</div>
+      </div>
+    </div>
+  </div>
+  <div class="prop-section">
+    <div class="prop-section-hdr" onclick="toggleProp(this)">▶ Dimensions</div>
+  </div>
+  <div class="prop-tip">${selectedElem===elem?"<strong>Selected</strong> — Esc to deselect.":"Hover to inspect. Click to select."}</div>`;
+}
+
+function toggleProp(hdr){
+  const body=hdr.nextElementSibling;
+  if(!body||!body.classList.contains("prop-section-body"))return;
+  const open=body.style.display!=="none"&&body.style.display!=="";
+  body.style.display=open?"none":"";
+  hdr.textContent=(open?"▶":"▼")+hdr.textContent.slice(1);
+}
+
+function onPropPhase(v){curPhase=+v;activeScIdx=-1;syncScBtns();render(true)}
+function onPropFilter(v){curFilter=v;activeScIdx=-1;syncScBtns();render(true)}
+
+// ── SCENARIOS ────────────────────────────────────────────────────────────────
+
+function applyScenario(idx){
+  const sc=SCENARIOS[idx];
+  curPhase=sc.phase; curFilter=sc.filter; activeScIdx=idx;
+  syncScBtns();
+  document.getElementById("sc-note").textContent=sc.note;
+  document.getElementById("view-tab-name").textContent=sc.viewName;
+  document.querySelectorAll("#fp-views .tree-view").forEach((el,i)=>el.classList.toggle("active",i===idx));
+  render(true);
+}
+
+function syncScBtns(){
+  document.querySelectorAll(".sc-btn").forEach((b,i)=>b.classList.toggle("active",i===activeScIdx));
+  if(activeScIdx>=0){
+    document.getElementById("view-tab-name").textContent=SCENARIOS[activeScIdx].viewName;
+    document.querySelectorAll("#fp-views .tree-view").forEach((el,i)=>el.classList.toggle("active",i===activeScIdx));
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+switchTab(document.querySelector(".tab-btn.active"),"View");
+buildProjectBrowser();
+applyScenario(0);
+
+// Fit view after layout is painted
+requestAnimationFrame(()=>requestAnimationFrame(fitView));
+
+// Resize handler
+window.addEventListener("resize", fitView);
+</script>
+</body>
+</html>
